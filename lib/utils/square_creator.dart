@@ -20,7 +20,7 @@ Future<List> create_init_child_squares(docPath, parentDocRef, depth) async {
   List createdList = [];
   for (int i = 1; i <= num_child_square; i++) {
     trunkSquare = {
-      'title': 'edit here',
+      'title': '',
       'detail': '',
       'create_date': date,
       'change_date': date,
@@ -37,14 +37,4 @@ Future<List> create_init_child_squares(docPath, parentDocRef, depth) async {
     });
   }
   return createdList;
-}
-
-Future<void> init_trunk_squares(docPath, parentDocRef) async {
-  // Depth1
-  List trunkSquareListDepth1 =
-      await create_init_child_squares(docPath, parentDocRef, 1);
-  // Depth2
-  for (var pDocRef in trunkSquareListDepth1) {
-    await create_init_child_squares(docPath, pDocRef, 2);
-  }
 }

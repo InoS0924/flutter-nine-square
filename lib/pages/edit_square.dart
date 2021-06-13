@@ -1,4 +1,5 @@
 // dart
+import '../utils/square_creator.dart';
 
 // third party
 import 'package:flutter/material.dart';
@@ -38,8 +39,8 @@ class _EditSquarePageState extends State<EditSquarePage> {
     // common
     _controllerTitle = TextEditingController(text: widget.targetDoc['title']);
     _controllerDetail = TextEditingController(text: widget.targetDoc['detail']);
-    // for trunk square
-    // _controllerAchieve = TextEditingController(text: widget.targetDoc['detail']);
+    // for trunk_first
+    // for trunk
     // for leaf
     if (widget.editType == 'leaf') {
       SquareInfo['score'] = widget.targetDoc['score'];
@@ -100,10 +101,17 @@ class _EditSquarePageState extends State<EditSquarePage> {
                   onPressed: () async {
                     final date = DateTime.now().toLocal().toIso8601String();
                     SquareInfo['change_date'] = date;
-                    await FirebaseFirestore.instance
+                    final docRef = FirebaseFirestore.instance
                         .collection(widget.docPath)
-                        .doc(widget.editDocId)
-                        .update(SquareInfo);
+                        .doc(widget.editDocId);
+                    await docRef.update(SquareInfo);
+                    if (widget.editType == 'trunk_first') {
+                      await create_init_child_squares(
+                        widget.docPath,
+                        docRef,
+                        2,
+                      );
+                    }
                     return Navigator.of(context).pop();
                   },
                 ),

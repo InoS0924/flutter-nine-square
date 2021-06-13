@@ -36,7 +36,7 @@ class _NineSquarePageState extends State<NineSquarePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Detail for ${widget.targetDoc['title']}"),
+        title: Text("${widget.targetDoc['title']}"),
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () async {
@@ -71,55 +71,72 @@ class _NineSquarePageState extends State<NineSquarePage> {
                           child: Text(widget.targetDoc['title']),
                         );
                       } else {
-                        return PopupMenuButton(
-                          onSelected: (String result) async {
-                            // Detail
-                            if (result == 'Detail') {
-                              userState.downStair();
-                              userState.pushTopic(
-                                  document.id, document['title']);
-                              if (userState.depth <= max_depth) {
-                                await Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (context) {
-                                    return NineSquarePage(document);
-                                  }),
-                                );
-                              } else {
-                                await Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (context) {
-                                    return LeafListPage(
-                                        trunkDocPath, document.id, document);
-                                  }),
-                                );
-                              }
-                            }
-                            // Edit
-                            if (result == 'Edit') {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute(builder: (context) {
-                                  return EditSquarePage(trunkDocPath,
-                                      document.id, 'trunk', document);
-                                }),
+                        String editType = 'trunk';
+                        return (document['create_date'] ==
+                                document['change_date'])
+                            ? IconButton(
+                                icon: Icon(Icons.edit),
+                                onPressed: () async {
+                                  if (depthNow != max_depth) {
+                                    editType = 'trunk_first';
+                                  }
+                                  await Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (context) {
+                                      return EditSquarePage(trunkDocPath,
+                                          document.id, editType, document);
+                                    }),
+                                  );
+                                },
+                              )
+                            : PopupMenuButton(
+                                onSelected: (String result) async {
+                                  // Detail
+                                  if (result == 'Detail') {
+                                    userState.downStair();
+                                    userState.pushTopic(
+                                        document.id, document['title']);
+                                    if (userState.depth <= max_depth) {
+                                      await Navigator.of(context).push(
+                                        MaterialPageRoute(builder: (context) {
+                                          return NineSquarePage(document);
+                                        }),
+                                      );
+                                    } else {
+                                      await Navigator.of(context).push(
+                                        MaterialPageRoute(builder: (context) {
+                                          return LeafListPage(trunkDocPath,
+                                              document.id, document);
+                                        }),
+                                      );
+                                    }
+                                  }
+                                  // Edit
+                                  if (result == 'Edit') {
+                                    await Navigator.of(context).push(
+                                      MaterialPageRoute(builder: (context) {
+                                        return EditSquarePage(trunkDocPath,
+                                            document.id, editType, document);
+                                      }),
+                                    );
+                                  }
+                                },
+                                itemBuilder: (BuildContext context) =>
+                                    <PopupMenuItem<String>>[
+                                  DetailPopupMenuItem,
+                                  EditPopupMenuItem
+                                ],
+                                child: Container(
+                                  child: Text(document['title']),
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(3.0),
+                                    border: Border.all(
+                                      color: Colors.black,
+                                      width: 0.5,
+                                    ),
+                                  ),
+                                ),
                               );
-                            }
-                          },
-                          itemBuilder: (BuildContext context) =>
-                              <PopupMenuItem<String>>[
-                            DetailPopupMenuItem,
-                            EditPopupMenuItem
-                          ],
-                          child: Container(
-                            child: Text(document['title']),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(3.0),
-                              border: Border.all(
-                                color: Colors.black,
-                                width: 0.5,
-                              ),
-                            ),
-                          ),
-                        );
                       }
                     }).toList(),
                   );
