@@ -31,11 +31,13 @@ class _LeafListPageState extends State<LeafListPage> {
   Widget build(BuildContext context) {
     final UserState userState = Provider.of<UserState>(context);
     final User user = userState.user!;
-    final int depthNow = userState.depth;
     final String rootId = userState.topicList[0];
-    final String trunkId = userState.topicList[depthNow - 1];
+    final String trunkId1 = userState.topicList[1];
+    final String trunkId2 = userState.topicList[2];
+    final String baseDocPath =
+        '$users_collection_name/${user.email}/$root_collection_name';
     final String leafDocPath =
-        '$users_collection_name/${user.email}/$root_collection_name/$rootId/$trunk_collection_name/$trunkId/$leaf_collection_name';
+        '$baseDocPath/$rootId/$trunk_collection_name/$trunkId2/$leaf_collection_name';
     userState.printFeatures("LeafListPage");
 
     return Scaffold(
@@ -56,7 +58,7 @@ class _LeafListPageState extends State<LeafListPage> {
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection(leafDocPath)
-                  .where('parent', isEqualTo: trunkId)
+                  .where('parent', isEqualTo: trunkId2)
                   .orderBy('change_date', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
@@ -74,30 +76,12 @@ class _LeafListPageState extends State<LeafListPage> {
                           trailing: PopupMenuButton(
                             onSelected: (String result) async {
                               if (result == 'Done') {
-                                final date =
-                                    DateTime.now().toLocal().toIso8601String();
-                                FirebaseFirestore.instance
-                                    .collection(leafDocPath)
-                                    .doc(document.id)
-                                    .update(
-                                  {
-                                    'change_date': date,
-                                    'done': true,
-                                  },
-                                );
+                                changeDoneState(document, baseDocPath, rootId,
+                                    trunkId1, trunkId2, 'done');
                               }
                               if (result == 'Undone') {
-                                final date =
-                                    DateTime.now().toLocal().toIso8601String();
-                                FirebaseFirestore.instance
-                                    .collection(leafDocPath)
-                                    .doc(document.id)
-                                    .update(
-                                  {
-                                    'change_date': date,
-                                    'done': false,
-                                  },
-                                );
+                                changeDoneState(document, baseDocPath, rootId,
+                                    trunkId1, trunkId2, 'undone');
                               }
                               if (result == 'Edit') {
                                 await Navigator.of(context).push(
@@ -145,6 +129,44 @@ class _LeafListPageState extends State<LeafListPage> {
           );
         },
       ),
+    );
+  }
+
+  Future<void> changeDoneState(document, String baseDocPath, String rootId,
+      String trunkId1, String trunkId2, String mode) async {
+    final trunkDocPath = '$baseDocPath/$rootId/$trunk_collection_name';
+    final leafDocPath = '$trunkDocPath/$trunkId2/$leaf_collection_name';
+    final coef = (mode == 'done' ? 1 : -1);
+
+    final date = DateTime.now().toLocal().toIso8601String();
+    final fbInstance = FirebaseFirestore.instance;
+    // update leaf
+    fbInstance.collection(leafDocPath).doc(document.id).update(
+      {
+        'change_date': date,
+        'done': (mode == 'done' ? true : false),
+      },
+    );
+    // update depth2
+    final docRef2 = fbInstance.collection(trunkDocPath).doc(trunkId2);
+    final doc2 = await docRef2.get();
+    int addedScore = doc2['done_score'] + coef * document['score'];
+    docRef2.update(
+      {'change_date': date, 'done_score': addedScore},
+    );
+    // update depth1
+    final docRef1 = fbInstance.collection(trunkDocPath).doc(trunkId1);
+    final doc1 = await docRef1.get();
+    addedScore = doc1['done_score'] + coef * document['score'];
+    docRef1.update(
+      {'change_date': date, 'done_score': addedScore},
+    );
+    // update root
+    final docRef0 = fbInstance.collection(baseDocPath).doc(rootId);
+    final doc0 = await docRef0.get();
+    addedScore = doc0['done_score'] + coef * document['score'];
+    docRef0.update(
+      {'change_date': date, 'done_score': addedScore},
     );
   }
 }
