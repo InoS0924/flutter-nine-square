@@ -1,4 +1,6 @@
 // dart
+import 'package:nine_square/data/const_list.dart';
+
 import './data/user_state.dart';
 import './pages/login_check.dart';
 
@@ -27,7 +29,7 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: '9-Square',
         theme: ThemeData(
-          primarySwatch: Colors.red,
+          primarySwatch: user_color,
         ),
         home: LoginCheck(),
       ),

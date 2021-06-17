@@ -72,6 +72,8 @@ class _NineSquarePageState extends State<NineSquarePage> {
                         );
                       } else {
                         String editType = 'trunk';
+                        double achievedRatio = document['done_score'] /
+                            document['max_achievement_score'];
                         return (document['create_date'] ==
                                 document['change_date'])
                             ? IconButton(
@@ -129,9 +131,11 @@ class _NineSquarePageState extends State<NineSquarePage> {
                                   child: Text(document['title']),
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
+                                    color:
+                                        user_color.withOpacity(achievedRatio),
                                     borderRadius: BorderRadius.circular(3.0),
                                     border: Border.all(
-                                      color: Colors.black,
+                                      color: Colors.grey,
                                       width: 0.5,
                                     ),
                                   ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 // user data path
 const users_collection_name = 'users';
+const user_color = Colors.red;
 
 // square data path
 const root_collection_name = 'root_squares';
