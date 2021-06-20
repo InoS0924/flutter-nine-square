@@ -2,7 +2,7 @@
 import '../data/user_state.dart';
 import '../data/const_list.dart';
 import './leaf_list.dart';
-import './edit_square.dart';
+import './edit_nine_square.dart';
 
 // third party
 import 'package:flutter/material.dart';
@@ -46,112 +46,89 @@ class _NineSquarePageState extends State<NineSquarePage> {
           },
         ),
       ),
-      body: Column(
-        children: <Widget>[
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection(trunkDocPath)
-                  .where('parent', isEqualTo: parentId)
-                  .orderBy('order')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasData) {
-                  final List<DocumentSnapshot> documents = snapshot.data!.docs;
-                  return GridView.count(
-                    crossAxisCount: 3,
-                    children: documents.map((document) {
-                      if (document['order'] == 5) {
-                        return OutlinedButton(
-                          onPressed: () async {
-                            userState.upStair();
-                            userState.popTopic();
-                            Navigator.of(context).pop();
-                          },
-                          child: Text(widget.targetDoc['title']),
-                        );
-                      } else {
-                        String editType = 'trunk';
-                        double achievedRatio = document['done_score'] /
-                            document['max_achievement_score'];
-                        return (document['create_date'] ==
-                                document['change_date'])
-                            ? IconButton(
-                                icon: Icon(Icons.edit),
-                                onPressed: () async {
-                                  if (depthNow != max_depth) {
-                                    editType = 'trunk_first';
-                                  }
-                                  await Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (context) {
-                                      return EditSquarePage(trunkDocPath,
-                                          document.id, editType, document);
-                                    }),
-                                  );
-                                },
-                              )
-                            : Stack(
-                                alignment: AlignmentDirectional.bottomEnd,
-                                children: [
-                                  OutlinedButton(
-                                    onPressed: () async {
-                                      userState.downStair();
-                                      userState.pushTopic(
-                                          document.id, document['title']);
-                                      if (userState.depth <= max_depth) {
-                                        await Navigator.of(context).push(
-                                          MaterialPageRoute(builder: (context) {
-                                            return NineSquarePage(document);
-                                          }),
-                                        );
-                                      } else {
-                                        await Navigator.of(context).push(
-                                          MaterialPageRoute(builder: (context) {
-                                            return LeafListPage(trunkDocPath,
-                                                document.id, document);
-                                          }),
-                                        );
-                                      }
-                                    },
-                                    child: Container(
-                                      child: Text(document['title']),
-                                      alignment: Alignment.center,
-                                      decoration: BoxDecoration(
-                                        color: user_color
-                                            .withOpacity(achievedRatio),
-                                        borderRadius:
-                                            BorderRadius.circular(3.0),
-                                        border: Border.all(
-                                          color: Colors.grey,
-                                          width: 0.5,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  OutlinedButton(
-                                    child: Icon(Icons.edit),
-                                    onPressed: () async {
-                                      await Navigator.of(context).push(
-                                        MaterialPageRoute(builder: (context) {
-                                          return EditSquarePage(trunkDocPath,
-                                              document.id, editType, document);
-                                        }),
-                                      );
-                                    },
-                                  ),
-                                ],
-                              );
-                      }
-                    }).toList(),
-                  );
-                }
-                return Center(
-                  child: Text('Now loading ...'),
-                );
-              },
-            ),
-          ),
-        ],
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection(trunkDocPath)
+            .where('parent', isEqualTo: parentId)
+            .orderBy('order')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            final List<DocumentSnapshot> documents = snapshot.data!.docs;
+            return GridView.count(
+              crossAxisCount: 3,
+              children: documents.map(
+                (document) {
+                  if (document['order'] == 5) {
+                    return OutlinedButton(
+                      onPressed: () async {
+                        userState.upStair();
+                        userState.popTopic();
+                        Navigator.of(context).pop();
+                      },
+                      child: Text(widget.targetDoc['title']),
+                    );
+                  } else {
+                    double achievedRatio = document['done_score'] /
+                        document['max_achievement_score'];
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: user_color.withOpacity(achievedRatio),
+                      ),
+                      child: OutlinedButton(
+                        child: Text(
+                          document['title'],
+                          style: TextStyle(
+                            color: Colors.black,
+                          ),
+                        ),
+                        onPressed: () async {
+                          userState.downStair();
+                          userState.pushTopic(document.id, document['title']);
+                          if (userState.depth <= max_depth) {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(builder: (context) {
+                                return NineSquarePage(document);
+                              }),
+                            );
+                          } else {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(builder: (context) {
+                                return LeafListPage(
+                                    trunkDocPath, document.id, document);
+                              }),
+                            );
+                          }
+                        },
+                      ),
+                    );
+                  }
+                },
+              ).toList(),
+            );
+          }
+          return Center(
+            child: Text('Now loading ...'),
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        child: Icon(Icons.edit),
+        onPressed: () async {
+          var editTargetDocSnapshots = await FirebaseFirestore.instance
+              .collection(trunkDocPath)
+              .where('parent', isEqualTo: parentId)
+              .orderBy('order')
+              .get();
+          // replace center doc
+          var editTargetDocs = editTargetDocSnapshots.docs;
+          editTargetDocs[4] = widget.targetDoc;
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) {
+              return EditNineSquarePage(editTargetDocs);
+            }),
+          );
+        },
       ),
     );
   }

@@ -21,7 +21,6 @@ Future<List> create_init_child_squares(docPath, parentDocRef, depth) async {
   for (int i = 1; i <= num_child_square; i++) {
     trunkSquare = {
       'title': '',
-      'detail': '',
       'create_date': date,
       'change_date': date,
       'parent': parentDocId,
