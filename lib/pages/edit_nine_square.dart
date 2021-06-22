@@ -14,8 +14,8 @@ import 'package:provider/provider.dart';
 // some package
 
 class EditNineSquarePage extends StatefulWidget {
-  var targetDocs;
-  EditNineSquarePage(this.targetDocs);
+  var pDoc, childDocs;
+  EditNineSquarePage(this.pDoc, this.childDocs);
 
   @override
   _EditNineSquarePageState createState() => _EditNineSquarePageState();
@@ -28,8 +28,14 @@ class _EditNineSquarePageState extends State<EditNineSquarePage> {
   Map<String, TextEditingController?> _controllerTitleMap = {};
   void initState() {
     super.initState();
-    for (var doc in widget.targetDocs) {
-      _controllerTitleMap[doc.id] = TextEditingController(text: doc['title']);
+    for (var document in widget.childDocs) {
+      String docId = document.id;
+      var tecontroller = TextEditingController(text: document['title']);
+      if (document['order'] == 5) {
+        docId = widget.pDoc.id;
+        tecontroller = TextEditingController(text: widget.pDoc['title']);
+      }
+      _controllerTitleMap[docId] = tecontroller;
     }
   }
 
@@ -46,31 +52,56 @@ class _EditNineSquarePageState extends State<EditNineSquarePage> {
       body: GridView.count(
         crossAxisCount: 3,
         children: [
-          for (var doc in widget.targetDocs)
-            Container(
-              margin: _padding,
-              padding: _padding,
-              alignment: Alignment.center,
-              child: TextFormField(
-                autofocus: true,
-                controller: _controllerTitleMap[doc.id],
-                keyboardType: TextInputType.multiline,
-                maxLines: null,
-                decoration: InputDecoration.collapsed(
-                  hintText: 'some title',
-                ),
-                onChanged: (String value) {
-                  setState(() {
-                    editTitleMap[doc.id] = value;
-                  });
-                },
-              ),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: Colors.grey,
-                ),
-              ),
-            )
+          for (var document in widget.childDocs)
+            (document['order'] == 5)
+                ? Container(
+                    margin: _padding,
+                    padding: _padding,
+                    alignment: Alignment.center,
+                    child: TextFormField(
+                      autofocus: true,
+                      controller: _controllerTitleMap[widget.pDoc.id],
+                      keyboardType: TextInputType.multiline,
+                      maxLines: null,
+                      decoration: InputDecoration.collapsed(
+                        hintText: 'some title',
+                      ),
+                      onChanged: (String value) {
+                        setState(() {
+                          editTitleMap[widget.pDoc.id] = value;
+                        });
+                      },
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Colors.grey,
+                      ),
+                    ),
+                  )
+                : Container(
+                    margin: _padding,
+                    padding: _padding,
+                    alignment: Alignment.center,
+                    child: TextFormField(
+                      autofocus: true,
+                      controller: _controllerTitleMap[document.id],
+                      keyboardType: TextInputType.multiline,
+                      maxLines: null,
+                      decoration: InputDecoration.collapsed(
+                        hintText: 'some title',
+                      ),
+                      onChanged: (String value) {
+                        setState(() {
+                          editTitleMap[document.id] = value;
+                        });
+                      },
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Colors.grey,
+                      ),
+                    ),
+                  )
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -92,8 +123,7 @@ class _EditNineSquarePageState extends State<EditNineSquarePage> {
           final date = DateTime.now().toLocal().toIso8601String();
 
           // update editted parent docs
-          var pDoc = widget.targetDocs[4];
-          widget.targetDocs.removeAt(4);
+          var pDoc = widget.pDoc;
           String? pDocTitle = editTitleMap[pDoc.id];
           if (pDocTitle != null && pDoc['title'] != pDocTitle) {
             var pDocRef =
@@ -109,12 +139,12 @@ class _EditNineSquarePageState extends State<EditNineSquarePage> {
           }
 
           // update editted child docs
-          for (var doc in widget.targetDocs) {
-            String? editTitle = editTitleMap[doc.id];
-            if (editTitle != null && doc['title'] != editTitle) {
+          for (var document in widget.childDocs) {
+            String? editTitle = editTitleMap[document.id];
+            if (editTitle != null && document['title'] != editTitle) {
               await FirebaseFirestore.instance
                   .collection(cDocPath)
-                  .doc(doc.id)
+                  .doc(document.id)
                   .update(
                 {
                   'change_date': date,
@@ -123,9 +153,15 @@ class _EditNineSquarePageState extends State<EditNineSquarePage> {
               );
             }
           }
+          Navigator.of(context).pop();
           await Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) {
-              return NineSquarePage(pDoc);
+              return NineSquarePage(
+                pDocPath,
+                pDoc.id,
+                pDoc['title'],
+                depthNow,
+              );
             }),
           );
         },

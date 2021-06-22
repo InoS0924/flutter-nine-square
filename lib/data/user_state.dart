@@ -14,7 +14,7 @@ class UserState extends ChangeNotifier {
   User? user;
   int depth = 0;
   List<String> topicList = [];
-  List<String> titleList = [];
+  //List<List<dynamic>> SquareList = [];
 
   void setUser(User newUser) {
     user = newUser;
@@ -32,13 +32,12 @@ class UserState extends ChangeNotifier {
     }
   }
 
-  void pushTopic(topicId, title) {
+  void pushTopic(topicId) {
     topicList.add(topicId);
-    titleList.add(title);
   }
 
-  List<String> popTopic() {
-    return [topicList.removeLast(), titleList.removeLast()];
+  String popTopic() {
+    return topicList.removeLast();
   }
 
   void printFeatures(String pageName) {
@@ -46,7 +45,6 @@ class UserState extends ChangeNotifier {
     print("===Features==");
     print("Depth: $depth");
     print(topicList);
-    print(titleList);
     print("=============\n\n");
   }
 }

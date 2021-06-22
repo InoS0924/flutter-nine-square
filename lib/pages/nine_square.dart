@@ -15,28 +15,58 @@ import 'package:provider/provider.dart';
 // some package
 
 class NineSquarePage extends StatefulWidget {
-  var targetDoc;
-  NineSquarePage(this.targetDoc);
+  var targetDoc, documents;
+  String pDocPath, pDocId, pTitle;
+  int depthNow;
+  NineSquarePage(this.pDocPath, this.pDocId, this.pTitle, this.depthNow);
 
   @override
   _NineSquarePageState createState() => _NineSquarePageState();
 }
 
 class _NineSquarePageState extends State<NineSquarePage> {
+  Future<bool>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = getNineSquares();
+  }
+
+  Future<bool> getNineSquares() async {
+    // parent doc
+    widget.targetDoc = await FirebaseFirestore.instance
+        .collection(widget.pDocPath)
+        .doc(widget.pDocId)
+        .get();
+
+    // child docs
+    String childDocPath = widget.pDocPath;
+    if (widget.depthNow == 1) {
+      childDocPath += "/${widget.pDocId}/$trunk_collection_name";
+    }
+    var editTargetDocSnapshots = await FirebaseFirestore.instance
+        .collection(childDocPath)
+        .where('parent', isEqualTo: widget.pDocId)
+        .orderBy('order')
+        .get();
+    widget.documents = editTargetDocSnapshots.docs;
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final UserState userState = Provider.of<UserState>(context);
     final User user = userState.user!;
-    final int depthNow = userState.depth;
     final String rootId = userState.topicList[0];
-    final String parentId = userState.topicList[depthNow - 1];
-    final String trunkDocPath =
-        '$users_collection_name/${user.email}/$root_collection_name/$rootId/$trunk_collection_name/';
+    final String basePath =
+        "$users_collection_name/${user.email}/$root_collection_name";
+    final String trunkDocPath = '$basePath/$rootId/$trunk_collection_name/';
     userState.printFeatures("NineSquarePage");
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("${widget.targetDoc['title']}"),
+        title: Text(widget.pTitle),
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () async {
@@ -46,65 +76,62 @@ class _NineSquarePageState extends State<NineSquarePage> {
           },
         ),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection(trunkDocPath)
-            .where('parent', isEqualTo: parentId)
-            .orderBy('order')
-            .snapshots(),
+      body: FutureBuilder(
+        future: _future,
         builder: (context, snapshot) {
           if (snapshot.hasData) {
-            final List<DocumentSnapshot> documents = snapshot.data!.docs;
             return GridView.count(
               crossAxisCount: 3,
-              children: documents.map(
-                (document) {
-                  if (document['order'] == 5) {
-                    return OutlinedButton(
-                      onPressed: () async {
-                        userState.upStair();
-                        userState.popTopic();
-                        Navigator.of(context).pop();
-                      },
-                      child: Text(widget.targetDoc['title']),
-                    );
-                  } else {
-                    double achievedRatio = document['done_score'] /
-                        document['max_achievement_score'];
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: user_color.withOpacity(achievedRatio),
-                      ),
-                      child: OutlinedButton(
-                        child: Text(
-                          document['title'],
-                          style: TextStyle(
-                            color: Colors.black,
+              children: <Widget>[
+                for (var document in widget.documents)
+                  (document['order'] == 5)
+                      ? OutlinedButton(
+                          onPressed: () async {
+                            userState.upStair();
+                            userState.popTopic();
+                            Navigator.of(context).pop();
+                          },
+                          child: Text(widget.targetDoc['title']),
+                        )
+                      : Container(
+                          decoration: BoxDecoration(
+                            color: user_color.withOpacity(
+                                document['done_score'] /
+                                    document['max_achievement_score']),
                           ),
-                        ),
-                        onPressed: () async {
-                          userState.downStair();
-                          userState.pushTopic(document.id, document['title']);
-                          if (userState.depth <= max_depth) {
-                            await Navigator.of(context).push(
-                              MaterialPageRoute(builder: (context) {
-                                return NineSquarePage(document);
-                              }),
-                            );
-                          } else {
-                            await Navigator.of(context).push(
-                              MaterialPageRoute(builder: (context) {
-                                return LeafListPage(
-                                    trunkDocPath, document.id, document);
-                              }),
-                            );
-                          }
-                        },
-                      ),
-                    );
-                  }
-                },
-              ).toList(),
+                          child: OutlinedButton(
+                            child: Text(
+                              document['title'],
+                              style: TextStyle(
+                                color: Colors.black,
+                              ),
+                            ),
+                            onPressed: () async {
+                              userState.downStair();
+                              userState.pushTopic(document.id);
+                              if (userState.depth <= max_depth) {
+                                await Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (context) {
+                                    return NineSquarePage(
+                                      trunkDocPath,
+                                      document.id,
+                                      document['title'],
+                                      userState.depth,
+                                    );
+                                  }),
+                                );
+                              } else {
+                                await Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (context) {
+                                    return LeafListPage(
+                                        trunkDocPath, document.id, document);
+                                  }),
+                                );
+                              }
+                            },
+                          ),
+                        )
+              ],
             );
           }
           return Center(
@@ -115,17 +142,9 @@ class _NineSquarePageState extends State<NineSquarePage> {
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.edit),
         onPressed: () async {
-          var editTargetDocSnapshots = await FirebaseFirestore.instance
-              .collection(trunkDocPath)
-              .where('parent', isEqualTo: parentId)
-              .orderBy('order')
-              .get();
-          // replace center doc
-          var editTargetDocs = editTargetDocSnapshots.docs;
-          editTargetDocs[4] = widget.targetDoc;
           await Navigator.of(context).push(
             MaterialPageRoute(builder: (context) {
-              return EditNineSquarePage(editTargetDocs);
+              return EditNineSquarePage(widget.targetDoc, widget.documents);
             }),
           );
         },

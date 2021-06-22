@@ -99,10 +99,9 @@ class _AddSquarePageState extends State<AddSquarePage> {
                       if (widget.addType == 'root') {
                         String docId = docRef.id;
                         print("Document written with ID: $docId");
-                        await create_init_child_squares(
+                        await init_squares(
                           '${widget.docPath}/$docId/$trunk_collection_name',
                           docRef,
-                          1,
                         );
                       }
                     });

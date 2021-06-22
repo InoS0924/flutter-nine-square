@@ -23,6 +23,7 @@ class MandalListPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final UserState userState = Provider.of<UserState>(context);
     final User user = userState.user!;
+    final depthNow = userState.depth;
     final String rootDocPath =
         '$users_collection_name/${user.email}/$root_collection_name';
     userState.printFeatures("MandalListPage");
@@ -63,11 +64,15 @@ class MandalListPage extends StatelessWidget {
                             child: Text(document['title']),
                             onPressed: () async {
                               userState.downStair();
-                              userState.pushTopic(
-                                  document.id, document['title']);
+                              userState.pushTopic(document.id);
                               await Navigator.of(context).push(
                                 MaterialPageRoute(builder: (context) {
-                                  return NineSquarePage(document);
+                                  return NineSquarePage(
+                                    rootDocPath,
+                                    document.id,
+                                    document['title'],
+                                    userState.depth,
+                                  );
                                 }),
                               );
                             },
