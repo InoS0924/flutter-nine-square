@@ -1,8 +1,4 @@
 // dart
-import '../data/user_state.dart';
-import '../data/const_list.dart';
-import './leaf_list.dart';
-import './edit_square.dart';
 
 // third party
 import 'package:flutter/material.dart';
@@ -13,30 +9,51 @@ import 'package:provider/provider.dart';
 // app
 
 // some package
+import 'package:nine_square/data/user_state.dart';
+import 'package:nine_square/data/const_list.dart';
+
+import 'package:nine_square/pages/leaf_list.dart';
+import 'package:nine_square/pages/edit_nine_square.dart';
 
 class NineSquarePage extends StatefulWidget {
-  var targetDoc;
-  NineSquarePage(this.targetDoc);
+  var childDocs;
+  String pDocPath, pDocId, pTitle;
+  NineSquarePage(this.pDocPath, this.pDocId, this.pTitle);
 
   @override
   _NineSquarePageState createState() => _NineSquarePageState();
 }
 
 class _NineSquarePageState extends State<NineSquarePage> {
+  Future<bool>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = getNineSquares();
+  }
+
+  Future<bool> getNineSquares() async {
+    // get child docs
+    var childDocSnapshot = await FirebaseFirestore.instance
+        .collection(widget.pDocPath)
+        .where('parents', arrayContains: widget.pDocId)
+        .limit(num_child_square)
+        .orderBy('order')
+        .get();
+    widget.childDocs = childDocSnapshot.docs;
+
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final UserState userState = Provider.of<UserState>(context);
-    final User user = userState.user!;
-    final int depthNow = userState.depth;
-    final String rootId = userState.topicList[0];
-    final String parentId = userState.topicList[depthNow - 1];
-    final String trunkDocPath =
-        '$users_collection_name/${user.email}/$root_collection_name/$rootId/$trunk_collection_name/';
     userState.printFeatures("NineSquarePage");
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Detail for ${widget.targetDoc['title']}"),
+        title: Text(widget.pTitle),
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () async {
@@ -46,91 +63,77 @@ class _NineSquarePageState extends State<NineSquarePage> {
           },
         ),
       ),
-      body: Column(
-        children: <Widget>[
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection(trunkDocPath)
-                  .where('parent', isEqualTo: parentId)
-                  .orderBy('order')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasData) {
-                  final List<DocumentSnapshot> documents = snapshot.data!.docs;
-                  return GridView.count(
-                    crossAxisCount: 3,
-                    children: documents.map((document) {
-                      if (document['order'] == 5) {
-                        return OutlinedButton(
+      body: FutureBuilder(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            return GridView.count(
+              crossAxisCount: 3,
+              children: <Widget>[
+                for (var document in widget.childDocs)
+                  (document.id == widget.pDocId)
+                      ? OutlinedButton(
                           onPressed: () async {
                             userState.upStair();
                             userState.popTopic();
                             Navigator.of(context).pop();
                           },
-                          child: Text(widget.targetDoc['title']),
-                        );
-                      } else {
-                        return PopupMenuButton(
-                          onSelected: (String result) async {
-                            // Detail
-                            if (result == 'Detail') {
+                          child: Text(document['title']),
+                        )
+                      : Container(
+                          decoration: BoxDecoration(
+                            color: user_color.withOpacity(
+                                document['done_score'] /
+                                    document['max_achievement_score']),
+                          ),
+                          child: OutlinedButton(
+                            child: Text(
+                              document['title'],
+                              style: TextStyle(
+                                color: Colors.black,
+                              ),
+                            ),
+                            onPressed: () async {
                               userState.downStair();
-                              userState.pushTopic(
-                                  document.id, document['title']);
+                              userState.pushTopic(document.id);
                               if (userState.depth <= max_depth) {
                                 await Navigator.of(context).push(
                                   MaterialPageRoute(builder: (context) {
-                                    return NineSquarePage(document);
+                                    return NineSquarePage(
+                                      widget.pDocPath,
+                                      document.id,
+                                      document['title'],
+                                    );
                                   }),
                                 );
                               } else {
                                 await Navigator.of(context).push(
                                   MaterialPageRoute(builder: (context) {
-                                    return LeafListPage(
-                                        trunkDocPath, document.id, document);
+                                    return LeafListPage(widget.pDocPath,
+                                        document.id, document['title']);
                                   }),
                                 );
                               }
-                            }
-                            // Edit
-                            if (result == 'Edit') {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute(builder: (context) {
-                                  return EditSquarePage(trunkDocPath,
-                                      document.id, 'trunk', document);
-                                }),
-                              );
-                            }
-                          },
-                          itemBuilder: (BuildContext context) =>
-                              <PopupMenuItem<String>>[
-                            DetailPopupMenuItem,
-                            EditPopupMenuItem
-                          ],
-                          child: Container(
-                            child: Text(document['title']),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(3.0),
-                              border: Border.all(
-                                color: Colors.black,
-                                width: 0.5,
-                              ),
-                            ),
+                            },
                           ),
-                        );
-                      }
-                    }).toList(),
-                  );
-                }
-                return Center(
-                  child: Text('Now loading ...'),
-                );
-              },
-            ),
-          ),
-        ],
+                        )
+              ],
+            );
+          }
+          return Center(
+            child: Text('Now loading ...'),
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        child: Icon(Icons.edit),
+        onPressed: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) {
+              return EditNineSquarePage(widget.childDocs);
+            }),
+          );
+        },
       ),
     );
   }

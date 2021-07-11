@@ -38,8 +38,6 @@ class _EditSquarePageState extends State<EditSquarePage> {
     // common
     _controllerTitle = TextEditingController(text: widget.targetDoc['title']);
     _controllerDetail = TextEditingController(text: widget.targetDoc['detail']);
-    // for trunk square
-    // _controllerAchieve = TextEditingController(text: widget.targetDoc['detail']);
     // for leaf
     if (widget.editType == 'leaf') {
       SquareInfo['score'] = widget.targetDoc['score'];
@@ -100,10 +98,10 @@ class _EditSquarePageState extends State<EditSquarePage> {
                   onPressed: () async {
                     final date = DateTime.now().toLocal().toIso8601String();
                     SquareInfo['change_date'] = date;
-                    await FirebaseFirestore.instance
+                    final docRef = FirebaseFirestore.instance
                         .collection(widget.docPath)
-                        .doc(widget.editDocId)
-                        .update(SquareInfo);
+                        .doc(widget.editDocId);
+                    await docRef.update(SquareInfo);
                     return Navigator.of(context).pop();
                   },
                 ),
