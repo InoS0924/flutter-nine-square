@@ -1,7 +1,4 @@
 // dart
-import '../data/user_state.dart';
-import '../data/const_list.dart';
-import '../utils/square_creator.dart';
 import 'dart:math';
 
 // third party
@@ -12,6 +9,9 @@ import 'package:provider/provider.dart';
 // app
 
 // some package
+import 'package:nine_square/utils/square_creator.dart';
+import 'package:nine_square/data/user_state.dart';
+import 'package:nine_square/data/const_list.dart';
 
 class AddSquarePage extends StatefulWidget {
   String docPath;
@@ -80,6 +80,11 @@ class _AddSquarePageState extends State<AddSquarePage> {
                 child: ElevatedButton(
                   child: Text('Add'),
                   onPressed: () async {
+                    var newDocRef = FirebaseFirestore.instance
+                        .collection(widget.docPath)
+                        .doc();
+                    String newDocId = newDocRef.id;
+
                     final date = DateTime.now().toLocal().toIso8601String();
                     SquareInfo['create_date'] = date;
                     SquareInfo['change_date'] = date;
@@ -87,24 +92,21 @@ class _AddSquarePageState extends State<AddSquarePage> {
                       SquareInfo['max_achievement_score'] =
                           base_max_score * pow(num_child_square - 1, max_depth);
                       SquareInfo['done_score'] = 0;
+                      SquareInfo['order'] = root_sqaure_order;
+                      SquareInfo['parents'] = [newDocId];
                     }
                     if (widget.addType == 'leaf') {
                       SquareInfo['parent'] = userState.topicList[depthNow - 1];
                       SquareInfo['done'] = false;
                     }
-                    await FirebaseFirestore.instance
-                        .collection(widget.docPath)
-                        .add(SquareInfo)
-                        .then((docRef) async {
-                      if (widget.addType == 'root') {
-                        String docId = docRef.id;
-                        print("Document written with ID: $docId");
-                        await init_squares(
-                          '${widget.docPath}/$docId/$trunk_collection_name',
-                          docRef,
-                        );
-                      }
-                    });
+                    await newDocRef.set(SquareInfo);
+                    if (widget.addType == 'root') {
+                      print("Document written with ID: $newDocId");
+                      await init_squares(
+                        widget.docPath,
+                        newDocRef,
+                      );
+                    }
                     return Navigator.of(context).pop();
                   },
                 ),

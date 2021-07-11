@@ -5,13 +5,13 @@ const users_collection_name = 'users';
 const user_color = Colors.red;
 
 // square data path
-const root_collection_name = 'root_squares';
-const trunk_collection_name = 'trunk_squares';
-const leaf_collection_name = 'leaf_squares';
+const square_collection_name = 'squares';
+const leaf_collection_name = 'leafs';
 
 const max_depth = 2;
 const num_child_square = 9;
 const base_max_score = 100;
+const root_sqaure_order = 55;
 
 // parts
 const EditPopupMenuItem = PopupMenuItem(

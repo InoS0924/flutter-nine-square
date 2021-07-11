@@ -1,8 +1,4 @@
 // dart
-import '../data/user_state.dart';
-import '../data/const_list.dart';
-import './leaf_list.dart';
-import './edit_nine_square.dart';
 
 // third party
 import 'package:flutter/material.dart';
@@ -13,12 +9,16 @@ import 'package:provider/provider.dart';
 // app
 
 // some package
+import 'package:nine_square/data/user_state.dart';
+import 'package:nine_square/data/const_list.dart';
+
+import 'package:nine_square/pages/leaf_list.dart';
+import 'package:nine_square/pages/edit_nine_square.dart';
 
 class NineSquarePage extends StatefulWidget {
-  var targetDoc, documents;
+  var childDocs;
   String pDocPath, pDocId, pTitle;
-  int depthNow;
-  NineSquarePage(this.pDocPath, this.pDocId, this.pTitle, this.depthNow);
+  NineSquarePage(this.pDocPath, this.pDocId, this.pTitle);
 
   @override
   _NineSquarePageState createState() => _NineSquarePageState();
@@ -34,34 +34,21 @@ class _NineSquarePageState extends State<NineSquarePage> {
   }
 
   Future<bool> getNineSquares() async {
-    // parent doc
-    widget.targetDoc = await FirebaseFirestore.instance
+    // get child docs
+    var childDocSnapshot = await FirebaseFirestore.instance
         .collection(widget.pDocPath)
-        .doc(widget.pDocId)
-        .get();
-
-    // child docs
-    String childDocPath = widget.pDocPath;
-    if (widget.depthNow == 1) {
-      childDocPath += "/${widget.pDocId}/$trunk_collection_name";
-    }
-    var editTargetDocSnapshots = await FirebaseFirestore.instance
-        .collection(childDocPath)
-        .where('parent', isEqualTo: widget.pDocId)
+        .where('parents', arrayContains: widget.pDocId)
+        .limit(num_child_square)
         .orderBy('order')
         .get();
-    widget.documents = editTargetDocSnapshots.docs;
+    widget.childDocs = childDocSnapshot.docs;
+
     return true;
   }
 
   @override
   Widget build(BuildContext context) {
     final UserState userState = Provider.of<UserState>(context);
-    final User user = userState.user!;
-    final String rootId = userState.topicList[0];
-    final String basePath =
-        "$users_collection_name/${user.email}/$root_collection_name";
-    final String trunkDocPath = '$basePath/$rootId/$trunk_collection_name/';
     userState.printFeatures("NineSquarePage");
 
     return Scaffold(
@@ -83,15 +70,15 @@ class _NineSquarePageState extends State<NineSquarePage> {
             return GridView.count(
               crossAxisCount: 3,
               children: <Widget>[
-                for (var document in widget.documents)
-                  (document['order'] == 5)
+                for (var document in widget.childDocs)
+                  (document.id == widget.pDocId)
                       ? OutlinedButton(
                           onPressed: () async {
                             userState.upStair();
                             userState.popTopic();
                             Navigator.of(context).pop();
                           },
-                          child: Text(widget.targetDoc['title']),
+                          child: Text(document['title']),
                         )
                       : Container(
                           decoration: BoxDecoration(
@@ -113,18 +100,17 @@ class _NineSquarePageState extends State<NineSquarePage> {
                                 await Navigator.of(context).push(
                                   MaterialPageRoute(builder: (context) {
                                     return NineSquarePage(
-                                      trunkDocPath,
+                                      widget.pDocPath,
                                       document.id,
                                       document['title'],
-                                      userState.depth,
                                     );
                                   }),
                                 );
                               } else {
                                 await Navigator.of(context).push(
                                   MaterialPageRoute(builder: (context) {
-                                    return LeafListPage(
-                                        trunkDocPath, document.id, document);
+                                    return LeafListPage(widget.pDocPath,
+                                        document.id, document['title']);
                                   }),
                                 );
                               }
@@ -144,7 +130,7 @@ class _NineSquarePageState extends State<NineSquarePage> {
         onPressed: () async {
           await Navigator.of(context).push(
             MaterialPageRoute(builder: (context) {
-              return EditNineSquarePage(widget.targetDoc, widget.documents);
+              return EditNineSquarePage(widget.childDocs);
             }),
           );
         },

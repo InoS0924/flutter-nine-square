@@ -1,26 +1,22 @@
 // dart
-import 'package:nine_square/pages/add_square.dart';
-
-import '../data/user_state.dart';
-import '../data/const_list.dart';
-import './add_square.dart';
-import './edit_square.dart';
 
 // third party
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 
 // app
 
 // some package
+import 'package:nine_square/data/user_state.dart';
+import 'package:nine_square/data/const_list.dart';
+
+import 'package:nine_square/pages/add_square.dart';
+import 'package:nine_square/pages/edit_square.dart';
 
 class LeafListPage extends StatefulWidget {
-  String parentDocPath;
-  String parentDocId;
-  var parentDoc;
-  LeafListPage(this.parentDocPath, this.parentDocId, this.parentDoc);
+  String pDocPath, pDocId, pTitle;
+  LeafListPage(this.pDocPath, this.pDocId, this.pTitle);
 
   @override
   _LeafListPageState createState() => _LeafListPageState();
@@ -29,20 +25,15 @@ class LeafListPage extends StatefulWidget {
 class _LeafListPageState extends State<LeafListPage> {
   @override
   Widget build(BuildContext context) {
-    final UserState userState = Provider.of<UserState>(context);
-    final User user = userState.user!;
-    final String rootId = userState.topicList[0];
-    final String trunkId1 = userState.topicList[1];
-    final String trunkId2 = userState.topicList[2];
-    final String baseDocPath =
-        '$users_collection_name/${user.email}/$root_collection_name';
-    final String leafDocPath =
-        '$baseDocPath/$rootId/$trunk_collection_name/$trunkId2/$leaf_collection_name';
+    final userState = Provider.of<UserState>(context);
+    final topicList = userState.topicList;
+    final baseDocPath = widget.pDocPath;
+    final leafDocPath = '$baseDocPath/${widget.pDocId}/$leaf_collection_name';
     userState.printFeatures("LeafListPage");
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Action List for ${widget.parentDoc['title']}"),
+        title: Text("Action List for ${widget.pTitle}"),
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () async {
@@ -58,7 +49,7 @@ class _LeafListPageState extends State<LeafListPage> {
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection(leafDocPath)
-                  .where('parent', isEqualTo: trunkId2)
+                  .where('parents', arrayContains: widget.pDocId)
                   .orderBy('change_date', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
@@ -76,12 +67,12 @@ class _LeafListPageState extends State<LeafListPage> {
                           trailing: PopupMenuButton(
                             onSelected: (String result) async {
                               if (result == 'Done') {
-                                changeDoneState(document, baseDocPath, rootId,
-                                    trunkId1, trunkId2, 'done');
+                                changeDoneState(document, baseDocPath,
+                                    leafDocPath, topicList, 'done');
                               }
                               if (result == 'Undone') {
-                                changeDoneState(document, baseDocPath, rootId,
-                                    trunkId1, trunkId2, 'undone');
+                                changeDoneState(document, baseDocPath,
+                                    leafDocPath, topicList, 'undone');
                               }
                               if (result == 'Edit') {
                                 await Navigator.of(context).push(
@@ -132,10 +123,8 @@ class _LeafListPageState extends State<LeafListPage> {
     );
   }
 
-  Future<void> changeDoneState(document, String baseDocPath, String rootId,
-      String trunkId1, String trunkId2, String mode) async {
-    final trunkDocPath = '$baseDocPath/$rootId/$trunk_collection_name';
-    final leafDocPath = '$trunkDocPath/$trunkId2/$leaf_collection_name';
+  Future<void> changeDoneState(document, String baseDocPath, String leafDocPath,
+      List topicList, String mode) async {
     final coef = (mode == 'done' ? 1 : -1);
 
     final date = DateTime.now().toLocal().toIso8601String();
@@ -148,21 +137,21 @@ class _LeafListPageState extends State<LeafListPage> {
       },
     );
     // update depth2
-    final docRef2 = fbInstance.collection(trunkDocPath).doc(trunkId2);
+    final docRef2 = fbInstance.collection(baseDocPath).doc(topicList[2]);
     final doc2 = await docRef2.get();
     int addedScore = doc2['done_score'] + coef * document['score'];
     docRef2.update(
       {'change_date': date, 'done_score': addedScore},
     );
     // update depth1
-    final docRef1 = fbInstance.collection(trunkDocPath).doc(trunkId1);
+    final docRef1 = fbInstance.collection(baseDocPath).doc(topicList[1]);
     final doc1 = await docRef1.get();
     addedScore = doc1['done_score'] + coef * document['score'];
     docRef1.update(
       {'change_date': date, 'done_score': addedScore},
     );
     // update root
-    final docRef0 = fbInstance.collection(baseDocPath).doc(rootId);
+    final docRef0 = fbInstance.collection(baseDocPath).doc(topicList[0]);
     final doc0 = await docRef0.get();
     addedScore = doc0['done_score'] + coef * document['score'];
     docRef0.update(

@@ -1,12 +1,4 @@
 // dart
-import 'package:nine_square/pages/add_square.dart';
-
-import '../data/user_state.dart';
-import '../data/const_list.dart';
-import './login.dart';
-import './nine_square.dart';
-import './add_square.dart';
-import './edit_square.dart';
 
 // third party
 import 'package:flutter/material.dart';
@@ -17,15 +9,21 @@ import 'package:provider/provider.dart';
 // app
 
 // some package
+import 'package:nine_square/data/user_state.dart';
+import 'package:nine_square/data/const_list.dart';
+
+import 'package:nine_square/pages/login.dart';
+import 'package:nine_square/pages/nine_square.dart';
+import 'package:nine_square/pages/add_square.dart';
+import 'package:nine_square/pages/edit_square.dart';
 
 class MandalListPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UserState userState = Provider.of<UserState>(context);
     final User user = userState.user!;
-    final depthNow = userState.depth;
-    final String rootDocPath =
-        '$users_collection_name/${user.email}/$root_collection_name';
+    final String docPath =
+        '$users_collection_name/${user.email}/$square_collection_name';
     userState.printFeatures("MandalListPage");
 
     return Scaffold(
@@ -50,7 +48,8 @@ class MandalListPage extends StatelessWidget {
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
-                  .collection(rootDocPath)
+                  .collection(docPath)
+                  .where('order', isEqualTo: root_sqaure_order)
                   .orderBy('change_date', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
@@ -68,10 +67,9 @@ class MandalListPage extends StatelessWidget {
                               await Navigator.of(context).push(
                                 MaterialPageRoute(builder: (context) {
                                   return NineSquarePage(
-                                    rootDocPath,
+                                    docPath,
                                     document.id,
                                     document['title'],
-                                    userState.depth,
                                   );
                                 }),
                               );
@@ -84,14 +82,14 @@ class MandalListPage extends StatelessWidget {
                               if (result == 'Edit') {
                                 await Navigator.of(context).push(
                                   MaterialPageRoute(builder: (context) {
-                                    return EditSquarePage(rootDocPath,
-                                        document.id, 'root', document);
+                                    return EditSquarePage(
+                                        docPath, document.id, 'root', document);
                                   }),
                                 );
                               }
                               if (result == 'Delete') {
                                 FirebaseFirestore.instance
-                                    .collection(rootDocPath)
+                                    .collection(docPath)
                                     .doc(document.id)
                                     .delete();
                               }
@@ -120,7 +118,7 @@ class MandalListPage extends StatelessWidget {
         onPressed: () async {
           await Navigator.of(context).push(
             MaterialPageRoute(builder: (context) {
-              return AddSquarePage(rootDocPath, 'root');
+              return AddSquarePage(docPath, 'root');
             }),
           );
         },
